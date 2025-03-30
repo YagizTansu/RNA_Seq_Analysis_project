@@ -1,0 +1,6 @@
+Gene Expression Plot Description for AL157440:
+Boxplot showing expression levels across different individuals and tissues:
+- Y-axis: Expression level in CPM (Counts Per Million)
+- X-axis: Individual donors (S7, S12, S13)
+- Points: Individual tissue samples
+- Colors: Different tissue types

@@ -1,0 +1,5 @@
+Expression Classes Plot Description:
+ This bar plot shows the distribution of genes across three expression categories:
+ - Individual-specific: Genes with expression levels 4x higher in one individual
+ - Individual-elevated: Genes with expression levels 2x higher in one individual
+ - Not elevated: Genes with similar expression across individuals

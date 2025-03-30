@@ -1,0 +1,6 @@
+Gene Class Boxplot Description:
+ Distribution of log2 fold changes across different gene categories:
+ - DE_UP: Significantly upregulated genes (FDR ≤ 0.01)
+ - DE_DOWN: Significantly downregulated genes (FDR ≤ 0.01)
+ - notDE_UP: Non-significant genes with positive log fold change
+ - notDE_DOWN: Non-significant genes with negative log fold change

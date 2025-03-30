@@ -1,0 +1,6 @@
+PCA Plot Description:
+ Principal Component Analysis (PCA) plot showing sample clustering by tissue type.
+ - Points are colored by tissue type
+ - Labels show donor IDs (S7, S12, S13)
+ - PC1 and PC2 represent the two main axes of variation in the data
+ - Samples clustering together indicate similar expression profiles

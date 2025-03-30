@@ -1,0 +1,6 @@
+Volcano Plot Description:
+ Volcano plot showing differential expression between liver and brain samples.
+ - X-axis: Log2 fold change in expression
+ - Y-axis: Statistical significance (-log10 FDR)
+ - Red points: Significantly differentially expressed genes (FDR < 0.05)
+ - Grey points: Non-significant genes
