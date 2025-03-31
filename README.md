@@ -1,18 +1,23 @@
 # RNA-Seq Analysis Project
 
 ## Overview
-This project analyzes RNA-Seq data to identify tissue-specific and individual-specific gene expression patterns across multiple donors and tissues.
+This project analyzes RNA-Seq data to identify tissue-specific and individual-specific gene expression patterns across multiple donors and tissues. The dataset is a "cleaned and shrinked" version of the data produced by a study of gene expression in human tissues.
+
+### Dataset References
+- Zambelli et al 2022 (https://www.sciencedirect.com/science/article/abs/pii/S0022283621000231)
+- Picardi et al 2015 (https://www.nature.com/articles/srep14941)
+- D'Erchia et al 2014 (https://pubmed.ncbi.nlm.nih.gov/25446395/)
 
 ## Project Structure
 ```
 RNA_Seq_Analysis/
 ├── data/
 │   ├── Metadata2025.csv    # Sample metadata
-│   └── Counts2025.csv      # Raw count data
+│   └── Counts2025.csv      # Gene expression count matrix (28,391 genes × 18 replicates)
 ├── scripts/
 │   └── rna_seq_analysis.R  # Main analysis script
 └── results/                # Generated output files
-```
+``
 
 ## Requirements
 - R version 4.0+
