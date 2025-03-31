@@ -13,10 +13,10 @@ library(stringr)
 dir.create("results", showWarnings = FALSE)
 
 # Read metadata
-metadata <- read.delim("data/Metadata2025.csv", sep="\t", header=TRUE)
+metadata <- read.csv("data/Metadata2025.csv", sep="\t", header=TRUE)
 
 # Read counts data
-counts <- read.delim("data/Counts2025.csv", sep="\t", row.names=1)
+counts <- read.csv("data/Counts2025.csv", sep="\t", row.names=1)
 
 # Create DGEList object
 dge <- DGEList(counts=counts, 
@@ -28,8 +28,8 @@ head(dge$counts)
 head(dge$samples)
 
 # Filter low expressed genes (>10 reads in at least 1 sample)
-keep <- rowSums(cpm(dge) > 10) >= 1
-dge <- dge[keep, ]
+keep <- rowSums(dge$counts > 10) >= 1
+dge <- dge[keep, , keep.lib.sizes=FALSE]
 dim(dge)
 
 # Normalize the data
@@ -43,7 +43,7 @@ cpm_values <- cpm(dge, log=FALSE)
 donor_averages <- list()
 for (donor in unique(metadata$Donor)) {
     donor_samples <- metadata$Donor == donor
-    donor_averages[[donor]] <- rowMeans(cpm_values[, donor_samples])
+    donor_averages[[donor]] <- rowMeans(cpm_values[, donor_samples], na.rm = TRUE)
 }
 
 # Convert to data frame for easier comparison
@@ -165,6 +165,37 @@ cat("PCA Plot Description:\n",
     "- PC1 and PC2 represent the two main axes of variation in the data\n",
     "- Samples clustering together indicate similar expression profiles\n",
     file="results/PCA_plot_description.txt")
+
+# Create MDS plot
+# Calculate MDS
+mds <- plotMDS(dge, plot=FALSE)
+mds_data <- data.frame(
+    Dim1 = mds$x,
+    Dim2 = mds$y,
+    Tissue = metadata$Tissue,
+    Donor = metadata$Donor
+)
+
+# Create MDS plot using ggplot2
+mds_plot <- ggplot(mds_data, aes(x=Dim1, y=Dim2, color=Tissue, label=Donor)) +
+    geom_point(size=3) +
+    geom_text(hjust=0.5, vjust=-0.5) +
+    theme_bw() +
+    xlab("Leading LogFC Dim 1") +
+    ylab("Leading LogFC Dim 2") +
+    ggtitle("MDS Plot by Tissue")
+
+# Save the MDS plot
+ggsave("results/MDS_plot.png", mds_plot, width=10, height=8)
+
+# Write MDS plot description
+cat("MDS Plot Description:\n",
+    "Multi-dimensional Scaling (MDS) plot showing sample relationships based on expression profiles.\n",
+    "- Points are colored by tissue type\n",
+    "- Labels show donor IDs (S7, S12, S13)\n",
+    "- Distances between samples represent leading fold-change differences\n",
+    "- Similar samples cluster together\n",
+    file="results/MDS_plot_description.txt")
 
 # Differential Expression Analysis: Liver vs Brain
 # Create a new group factor for the selected tissues
@@ -389,5 +420,7 @@ analyze_gene <- function(gene_name, dge, metadata, expression_results) {
 }
 
 # Example usage - make sure to assign the result AND print the plot:
+# result <- analyze_gene("gene_name", dge, metadata, expression_results)
+
 result <- analyze_gene("AL157440", dge, metadata, expression_results)
 print(result$plot)  # Explicitly print the plot

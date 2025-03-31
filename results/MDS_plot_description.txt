@@ -1,0 +1,6 @@
+MDS Plot Description:
+ Multi-dimensional Scaling (MDS) plot showing sample relationships based on expression profiles.
+ - Points are colored by tissue type
+ - Labels show donor IDs (S7, S12, S13)
+ - Distances between samples represent leading fold-change differences
+ - Similar samples cluster together
