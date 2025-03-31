@@ -13,9 +13,15 @@ library(stringr)
 dir.create("results", showWarnings = FALSE)
 
 # Read metadata
+if (!file.exists("data/Metadata2025.csv")) {
+    stop("Metadata file not found")
+}
 metadata <- read.csv("data/Metadata2025.csv", sep="\t", header=TRUE)
 
 # Read counts data
+if (!file.exists("data/Counts2025.csv")) {
+    stop("Counts file not found")
+}
 counts <- read.csv("data/Counts2025.csv", sep="\t", row.names=1)
 
 # Create DGEList object
