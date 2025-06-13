@@ -26,17 +26,28 @@ knitr::opts_chunk$set(
 
 ## 1.1 Project Overview
 
-This RNA-Seq analysis project investigates gene expression patterns in human tissues, focusing on identifying both tissue-specific and individual-specific expression signatures. The analysis combines multiple analytical approaches to provide a comprehensive understanding of gene expression variation.
+This RNA-Seq analysis project investigates gene expression patterns in human tissues, focusing on identifying individual-specific and individual-elevated expression signatures. The analysis combines multiple analytical approaches to provide a comprehensive understanding of gene expression variation.
 
 ## 1.2 Dataset Description
 
-The dataset represents a curated collection of RNA-Seq data from human tissues: - Gene expression count matrix (28,391 genes × 18 replicates) - Multiple tissue types (liver, brain) - Three individual donors (S7, S12, S13)
+The dataset represents a curated collection of RNA-Seq data from human tissues: - Gene expression count matrix (28,391 genes × 18 replicates) 
+- Multiple tissue types :
+    -> liver
+    -> brain
+    -> muscle
+    -> heart
+    -> kidney
+    -> lung 
+- Three individual donors :
+    -> S7 
+    -> S12 
+    -> S13
 
 ### References
 
--   Zambelli et al 2022
--   Picardi et al 2015
--   D'Erchia et al 2014
+-   Zambelli et al 2022(aScan: A Novel Method for the Study of Allele Specific Expression in Single Individuals)
+-   Picardi et al 2015(Profiling RNA editing in human tissues: towards the inosinome Atlas)
+-   D'Erchia et al 2014(Tissue-specific mtDNA abundance from exome data and its correlation with mitochondrial transcription, mass and respiratory activity)
 
 # 2. Data Processing and Quality Control
 
@@ -44,37 +55,84 @@ The dataset represents a curated collection of RNA-Seq data from human tissues: 
 
 This section establishes the computational environment and loads necessary tools for analysis.
 
+
+- **edgeR**: The core tool for differential gene expression analysis, providing robust statistical methods for comparing gene expression between different conditions and performing data normalization using the TMM (Trimmed Mean of M-values) method.
+
+- **ggplot2**: Serves as the primary graphics engine, enabling the creation of publication-quality plots including volcano plots, PCA plots, and expression heatmaps.
+
+- **RColorBrewer**: Complements ggplot2 by providing carefully designed color palettes that are both aesthetically pleasing and scientifically appropriate for different types of data visualization.
+
+- **tidyverse**: A collection of packages that handles data manipulation and transformation tasks, including dplyr for data filtering and summarization, and tidyr for reshaping data structures.
+
+- **stringr**: Provides essential string processing capabilities needed for gene name manipulation and text formatting throughout the analysis pipeline.
+
 ```{r libraries}
 # Load required libraries
 library(edgeR)
-library(limma)
 library(ggplot2)
-library(DESeq2)
-library(pheatmap)
 library(RColorBrewer)
 library(tidyverse)
-library(gridExtra)
 library(stringr)
 
-# Create results directory
-dir.create("../results", showWarnings = FALSE)
+# Create results directory if it doesn't exist
+dir.create("../results", showWarnings = TRUE)
 ```
 
 ## 2.2 Data Import and Preprocessing
 
 Here we load the raw data and perform initial quality checks to ensure data integrity.
 
+### Load Data
 ```{r load_data}
 # Read metadata and counts
-metadata <- read.csv("../data/Metadata2025.csv", sep="\t", header=TRUE)
-counts <- read.csv("../data/Counts2025.csv", sep="\t", row.names=1)
-
-# Create DGEList object
-dge <- DGEList(counts=counts, samples=metadata)
-
-# Display dimensions
-dim(dge)
+metadata <- read.csv("../data/Metadata2025.csv", sep="\t", header=TRUE, check.names = FALSE,row.names=1)
+counts <- read.csv("../data/Counts2025.csv", sep="\t", header=TRUE, check.names = FALSE, row.names=1)
 ```
+
+### Control Data
+```{r control_data}
+head(counts) # Display first few rows of counts
+dim(counts) # Expected dimensions: 28391 genes x 18 samples
+apply(counts,2,sum) # Check total counts per sample
+sum(is.na(counts))  # Check for missing values
+head(metadata) # Display first few rows of metadata
+dim(metadata) # Expected dimensions: 18 samples x 3 metadata columns
+sum(is.na(metadata))  # Check for missing values
+```
+
+###
+```{r add_sample_column_to_metadata}
+metadata$Sample <- paste(metadata$Tissue, metadata$Donor, sep="_") # merge Tissue	Donor columns
+
+# Ensure metadata has the same order as counts
+metadata <- metadata[match(colnames(counts), metadata$Sample), ]
+
+rownames(metadata) <- NULL # Reset row names to avoid confusion
+
+# Check if the order matches
+if (!all(metadata$Sample == colnames(counts))) {
+    stop("Metadata sample names do not match count matrix columns.") # nolint
+}
+
+# Display updated metadata
+head(metadata)
+
+```
+
+
+### Create a DGEList object for edgeR analysis
+This step creates the fundamental data structure for edgeR analysis by:
+Combines count data and metadata into a single object
+Ensures data consistency and integrity
+
+```{r create_dge}
+dge <- DGEList(counts=counts, samples=metadata) # Create DGEList object)
+head(dge$counts) # Count matrix (28,391 genes × 18 samples)
+head(dge$samples) # Metadata information
+head(dge$genes)  #Gene information (if available)
+```
+
+
 
 ## 2.3 Filtering and Normalization
 
@@ -336,8 +394,8 @@ This section explores the relationship between tissue-specific and individual-sp
 ```{r deg_overlap}
 # Analyze overlap between DEGs and individual patterns
 deg_genes <- rownames(sig_genes)
-individual_specific_genes <- rownames(expression_results)[expression_results$Class == "individual_specific"]
-individual_elevated_genes <- rownames(expression_results)[expression_results$Class == "individual_elevated"]
+individual_specific_genes <- names(expression_classes)[expression_classes == "individual_specific"]
+individual_elevated_genes <- names(expression_classes)[expression_classes == "individual_elevated"]
 
 deg_specific_overlap <- intersect(deg_genes, individual_specific_genes)
 deg_elevated_overlap <- intersect(deg_genes, individual_elevated_genes)

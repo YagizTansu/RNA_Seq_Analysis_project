@@ -1,16 +1,12 @@
 # Load required libraries
 library(edgeR)
-library(limma)
 library(ggplot2)
-library(DESeq2)
-library(pheatmap)
 library(RColorBrewer)
 library(tidyverse)
-library(gridExtra)
 library(stringr)
 
 # Create results directory if it doesn't exist
-dir.create("results", showWarnings = FALSE)
+dir.create("results", showWarnings = TRUE)
 
 # Read metadata
 if (!file.exists("data/Metadata2025.csv")) {
