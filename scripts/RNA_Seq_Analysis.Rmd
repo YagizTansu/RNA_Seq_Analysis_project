@@ -214,6 +214,7 @@ head(top_genes$table) # Display first few rows of top genes
 
 sig_genes <- top_genes$table[top_genes$table$FDR < 0.01,]
 
+
 head(sig_genes) # Display significant genes
 
 # Create volcano plot
@@ -323,20 +324,79 @@ print(individual_elevated_counts) # Display counts of individual elevated genes
 ```
 
 
-```{r asdasdas_ASDasd}
-# Consider the DEGs that you obtained in the common part, and the two tissues that were compared: how many DEGs are "elevated" in one or the other individual?
+```{r expression_summary}
+# 9. Summary of Individual-Specific and Individual-Elevated DEGs liver vs brain significant genes
 
-# Filter DEGs for individual-specific and individual-elevated expression
-individual_specific_genes <- names(expression_classes[grep("individual_specific_", expression_classes)])
-individual_elevated_genes <- names(expression_classes[grep("individual_elevated_", expression_classes)])
-individual_specific_degs <- individual_specific_genes[individual_specific_genes %in% rownames(top_genes$table)]
-individual_elevated_degs <- individual_elevated_genes[individual_elevated_genes %in% rownames(top_genes$table)]
-individual_specific_degs_count <- length(individual_specific_degs)
-individual_elevated_degs_count <- length(individual_elevated_degs)
-print(paste("Number of individual-specific DEGs:", individual_specific_degs_count))
-print(paste("Number of individual-elevated DEGs:", individual_elevated_degs_count))
+# Count individual-specific and individual-elevated DEGs
+specific_genes <- names(expression_classes[grep("^individual_specific_", expression_classes)]) 
+elevated_genes <- names(expression_classes[grep("^individual_elevated_", expression_classes)])
 
+# Filter significant genes
+specific_degs <- specific_genes[specific_genes %in% rownames(sig_genes)]
+elevated_degs <- elevated_genes[elevated_genes %in% rownames(sig_genes)]
 
+head(specific_degs) # Display first few individual-specific DEGs
+head(elevated_degs) # Display first few individual-elevated DEGs
+
+# Print summary table
+n_specific_degs <- length(specific_degs)
+n_elevated_degs <- length(elevated_degs)
+
+print(paste("Total individual-specific DEGs:", n_specific_degs))
+print(paste("Total individual-elevated DEGs:", n_elevated_degs))
 ```
 
+# 9. Individual-Specific and Individual-Elevated DEGs Summary
+This section summarizes the individual-specific and individual-elevated DEGs identified in the analysis, providing insights into tissue-specific expression patterns.
 
+```{r individual_specific_elevated_summary}
+
+analyze_gene <- function(gene_name, cpm_matrix, metadata, expression_classes, plot_type = "boxplot") {
+  
+  if (!(gene_name %in% rownames(cpm_matrix))) {
+    stop(paste("Gen", gene_name, "veride bulunamadı."))
+  }
+
+  expr_values <- cpm_matrix[gene_name, ]
+  
+  donors <- metadata$Donor
+  names(donors) <- metadata$Sample
+
+  avg_by_donor <- tapply(expr_values, donors, mean, na.rm = TRUE)
+  
+  gene_class <- expression_classes[gene_name]
+  elevated <- if (grepl("individual_elevated_", gene_class)) gsub("individual_elevated_", "", gene_class) else NULL
+  specific <- if (grepl("individual_specific_", gene_class)) gsub("individual_specific_", "", gene_class) else NULL
+
+  plot_data <- data.frame(
+    Expression = expr_values,
+    Donor = donors[rownames(metadata)]
+  )
+
+    if (plot_type == "barplot") {
+    p <- ggplot(data.frame(Donor = names(avg_by_donor), Avg = avg_by_donor), aes(x = Donor, y = Avg, fill = Donor)) +
+        geom_bar(stat = "identity") +
+        labs(title = gene_name, y = "Average CPM", x = "Donor") +
+        theme_minimal()
+    } else {
+    p <- ggplot(plot_data, aes(x = Donor, y = Expression, fill = Donor)) +
+        geom_boxplot() +
+        geom_jitter(width = 0.2, alpha = 0.6) +
+        labs(title = gene_name, y = "CPM", x = "Donor") +
+        theme_minimal()
+    }
+
+    print(p) 
+
+  cat("Gene:", gene_name, "\n")
+  cat("Average expression by donor:\n")
+  print(round(avg_by_donor, 2))
+  cat("\nExpression class:", gene_class, "\n")
+  if (!is.null(elevated)) cat("Elevated in:", elevated, "\n")
+  if (!is.null(specific)) cat("Specific to:", specific, "\n")
+}
+
+analyze_gene("ABAT", cpm_values, metadata, expression_classes, plot_type = "boxplot")
+analyze_gene("ABAT", cpm_values, metadata, expression_classes, plot_type = "barplot")
+
+```
