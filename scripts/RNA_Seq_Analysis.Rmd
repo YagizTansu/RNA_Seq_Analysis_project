@@ -350,31 +350,55 @@ print(paste("Total individual-elevated DEGs:", n_elevated_degs))
 This section summarizes the individual-specific and individual-elevated DEGs identified in the analysis, providing insights into tissue-specific expression patterns.
 
 ```{r individual_specific_elevated_summary}
-analyze_gene <- function(gene_name, cpm_values, metadata, plot_type = "boxplot") {
-    # Get gene expression and calculate donor averages
+analyze_gene <- function(gene_name, cpm_values, metadata, expression_classes, plot_type = "barplot") {
+    # Gene expression values
     expr_values <- cpm_values[gene_name, ]
-    avg_by_donor <- tapply(expr_values, metadata$Donor, mean)
 
-    # Create plot data
-    plot_data <- data.frame(
+    ##    liver_S7    brain_S7   muscle_S7    heart_S7   kidney_S7     lung_S7
+    ## 2032.042349  296.020231    4.086522   10.790900  452.478980   18.111946
+
+    # Average by donor
+    avg_by_donor <- tapply(expr_values, metadata$Donor, mean)
+    
+    cat("Average expression:\n")
+    print(avg_by_donor)
+    cat("Class:", expression_classes[gene_name], "\n\n")
+
+
+    bar_plot_data <- data.frame(
+        Donor = names(avg_by_donor),
+        Avg = avg_by_donor
+    )
+
+    # Plot data
+    box_plot_data <- data.frame(
         Expression = expr_values,
         Donor = metadata$Donor
     )
 
+    # Create plot
     if (plot_type == "barplot") {
-        ggplot(data.frame(Donor = names(avg_by_donor), Avg = avg_by_donor), aes(x = Donor, y = Avg, fill = Donor)) +
+        plot <- ggplot(
+            bar_plot_data,
+            aes(x = Donor, y = Avg, fill = Donor)) +
             geom_bar(stat = "identity") +
-            labs(title = gene_name, y = "Average CPM", x = "Donor") +
+            labs(title = gene_name, y = "Average CPM") +
             theme_minimal()
     } else {
-        ggplot(plot_data, aes(x = Donor, y = Expression, fill = Donor)) +
+        plot <- ggplot(
+            box_plot_data, 
+            aes(x = Donor, y = Expression, fill = Donor)) +
             geom_boxplot() +
             geom_jitter(width = 0.2, alpha = 0.6) +
-            labs(title = gene_name, y = "CPM", x = "Donor") +
+            labs(title = gene_name, y = "CPM") +
             theme_minimal()
     }
+
+    print(plot) # Display the plot
+
+
 }
 
-analyze_gene("ABAT", cpm_values, metadata, plot_type = "boxplot")
-analyze_gene("ABAT", cpm_values, metadata, plot_type = "barplot")
+analyze_gene("ABAT", cpm_values, metadata, expression_classes, "boxplot")
+analyze_gene("ABAT", cpm_values, metadata, expression_classes, "barplot")
 ```
