@@ -13,10 +13,10 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(
-  echo = TRUE,
-  message = FALSE,
-  warning = FALSE,
-  fig.align = 'center'
+    echo = TRUE,
+    message = FALSE,
+    warning = FALSE,
+    fig.align = "center"
 )
 ```
 
@@ -80,25 +80,25 @@ Here we load the raw data and perform initial quality checks to ensure data inte
 ### Load Data
 ```{r load_data}
 # Read metadata and counts
-metadata <- read.csv("../data/Metadata2025.csv", sep="\t", header=TRUE, check.names = FALSE,row.names=1)
-counts <- read.csv("../data/Counts2025.csv", sep="\t", header=TRUE, check.names = FALSE, row.names=1)
+metadata <- read.csv("../data/Metadata2025.csv", sep = "\t", header = TRUE, check.names = FALSE, row.names = 1)
+counts <- read.csv("../data/Counts2025.csv", sep = "\t", header = TRUE, check.names = FALSE, row.names = 1)
 ```
 
 ### Control Data
 ```{r control_data}
 head(counts) # Display first few rows of counts
 dim(counts) # Expected dimensions: 28391 genes x 18 samples
-apply(counts,2,sum) # Check total counts per sample
-sum(is.na(counts))  # Check for missing values
+apply(counts, 2, sum) # Check total counts per sample
+sum(is.na(counts)) # Check for missing values
 head(metadata) # Display first few rows of metadata
 dim(metadata) # Expected dimensions: 18 samples x 2 metadata columns
-sum(is.na(metadata))  # Check for missing values
+sum(is.na(metadata)) # Check for missing values
 ```
 
 ### Add Sample Column to Metadata
 This step merges the Tissue and Donor columns to create a unique Sample identifier for each sample, ensuring consistency between metadata and count data.
 ```{r add_sample_column_to_metadata}
-metadata$Sample <- paste(metadata$Tissue, metadata$Donor, sep="_") # merge Tissue	Donor columns
+metadata$Sample <- paste(metadata$Tissue, metadata$Donor, sep = "_") # merge Tissue	Donor columns
 
 columns_name_counts_match_check <- identical(metadata$Sample, colnames(counts))
 
@@ -106,7 +106,7 @@ if (columns_name_counts_match_check == FALSE) {
     metadata <- metadata[match(colnames(counts), metadata$Sample), ] # Reorder metadata to match counts columns # nolint: line_length_linter.
     rownames(metadata) <- NULL # Reset row names to avoid confusion
     print("metadata reordered to match counts columns.")
-}else {
+} else {
     print("Sample names in metadata match columns of counts.")
 }
 
@@ -116,10 +116,9 @@ columns_name_counts_match_check <- identical(metadata$Sample, colnames(counts)) 
 
 if (columns_name_counts_match_check == FALSE) {
     stop("Sample names in metadata do not match columns of counts.")
-}else {
+} else {
     print("Sample names in metadata match columns of counts.")
 }
-
 ```
 
 
@@ -129,7 +128,7 @@ Combines count data and metadata into a single object
 Ensures data consistency and integrity
 
 ```{r create_dge}
-dge <- DGEList(counts=counts, samples=metadata) # Create DGEList object)
+dge <- DGEList(counts = counts, samples = metadata) # Create DGEList object)
 head(dge$counts) # Count matrix (28,391 genes × 18 samples)
 head(dge$samples) # Metadata information
 ```
@@ -140,7 +139,7 @@ Filtering lowly expressed genes is essential to reduce noise and improve the rel
 ```{r filtering}
 # Filter low expressed genes
 keep <- rowSums(dge$counts > 10) >= 1
-dge <- dge[keep, , keep.lib.sizes=FALSE]
+dge <- dge[keep, , keep.lib.sizes = FALSE]
 print("Dimensions after filtering:")
 dim(dge)
 ```
@@ -157,19 +156,19 @@ head(dge$samples) # Display first few rows of normalized sample information
 MDS provides an alternative view of sample relationships based on expression distances.
 
 ```{r mds_analysis}
-mds <- plotMDS(dge, plot=FALSE)
+mds <- plotMDS(dge, plot = FALSE)
 
 # Plot with ggplot2
 ggplot(data.frame(
-    x = mds$x, 
-    y = mds$y, 
-    Tissue = metadata$Tissue, 
+    x = mds$x,
+    y = mds$y,
+    Tissue = metadata$Tissue,
     Donor = metadata$Donor
-), aes(x, y, color=Tissue, label=Donor)) +
-    geom_point(size=3) +
-    geom_text(vjust=-0.5) +
+), aes(x, y, color = Tissue, label = Donor)) +
+    geom_point(size = 3) +
+    geom_text(vjust = -0.5) +
     theme_bw() +
-    labs(title="MDS Plot by Tissue", x="Dimension 1", y="Dimension 2")
+    labs(title = "MDS Plot by Tissue", x = "Dimension 1", y = "Dimension 2")
 ```
 
 **Key Observations:**
@@ -201,7 +200,6 @@ print(head(dge_selected$tagwise.dispersion))
 et <- exactTest(dge_selected)
 
 head(et$table) # Display first few rows of results
-
 ```
  logFC : Log2 fold change between liver and brain tissues.
  logCPM : Log2 counts per million, indicating expression levels.
@@ -209,23 +207,22 @@ head(et$table) # Display first few rows of results
 
 # 6 Top Differentially Expressed Genes (DEGs)
 ```{r top_tags}
-
-top_genes <- topTags(et, n=Inf) # ranks genes from differential expression analysis based on statistical measures, including the FDR (False Discovery Rate).
+top_genes <- topTags(et, n = Inf) # ranks genes from differential expression analysis based on statistical measures, including the FDR (False Discovery Rate).
 
 head(top_genes$table) # Display first few rows of top genes
 
-sig_genes <- top_genes$table[top_genes$table$FDR < 0.01,]
+sig_genes <- top_genes$table[top_genes$table$FDR < 0.01, ]
 
 
 head(sig_genes) # Display significant genes
 
 # Create volcano plot
-ggplot(top_genes$table, aes(x=logFC, y=-log10(FDR))) +
-    geom_point(aes(color=FDR < 0.01), alpha=0.5) +
-    scale_color_manual(values=c("grey", "red")) +
+ggplot(top_genes$table, aes(x = logFC, y = -log10(FDR))) +
+    geom_point(aes(color = FDR < 0.01), alpha = 0.5) +
+    scale_color_manual(values = c("grey", "red")) +
     theme_bw() +
-    labs(title="Volcano Plot of Liver vs Brain DEGs", x="Log2 Fold Change", y="-Log10 FDR") +
-    theme(legend.position="none")
+    labs(title = "Volcano Plot of Liver vs Brain DEGs", x = "Log2 Fold Change", y = "-Log10 FDR") +
+    theme(legend.position = "none")
 ```
 
 **Key Observations:**
@@ -239,18 +236,21 @@ We classify genes based on their expression patterns and regulatory behavior.
 gene_classes <- data.frame(top_genes$table)
 print(head(gene_classes))
 gene_classes$class <- ifelse(gene_classes$FDR <= 0.01 & gene_classes$logFC > 0, "DE_UP",
-                      ifelse(gene_classes$FDR <= 0.01 & gene_classes$logFC < 0, "DE_DOWN",
-                      ifelse(gene_classes$FDR > 0.01 & gene_classes$logFC > 0, "notDE_UP",
-                      ifelse(gene_classes$FDR > 0.01 & gene_classes$logFC < 0, "notDE_DOWN", NA))))
+    ifelse(gene_classes$FDR <= 0.01 & gene_classes$logFC < 0, "DE_DOWN",
+        ifelse(gene_classes$FDR > 0.01 & gene_classes$logFC > 0, "notDE_UP",
+            ifelse(gene_classes$FDR > 0.01 & gene_classes$logFC < 0, "notDE_DOWN", NA)
+        )
+    )
+)
 
 # Create boxplot
-ggplot(gene_classes, aes(x=class, y=logFC, fill=class)) +
-  geom_boxplot() +
-  theme_bw() +
-  ggtitle("Distribution of logFC by Gene Class") +
-  xlab("Gene Class") +
-  ylab("Log2 Fold Change") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+ggplot(gene_classes, aes(x = class, y = logFC, fill = class)) +
+    geom_boxplot() +
+    theme_bw() +
+    ggtitle("Distribution of logFC by Gene Class") +
+    xlab("Gene Class") +
+    ylab("Log2 Fold Change") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
 **Key Observations:**
@@ -265,7 +265,7 @@ This section examines gene expression patterns specific to individual donors.
 
 ```{r expression_patterns}
 # Calculate CPM values
-cpm_values <- cpm(dge, log=FALSE)
+cpm_values <- cpm(dge, log = FALSE)
 
 head(dge$counts) # Before cpm transformation
 head(cpm_values) # After cpm transformation
@@ -276,7 +276,7 @@ donor_averages <- list()
 for (donor in unique(metadata$Donor)) {
     donor_samples <- metadata$Donor == donor
     donor_averages[[donor]] <- rowMeans(cpm_values[, donor_samples], na.rm = TRUE)
-      print("")
+    print("")
     print(donor) # Print donor name
     print(head(donor_averages[[donor]])) # Display first few values of the donor averages
 }
@@ -297,7 +297,7 @@ classify_expression <- function(row) {
     max_donor <- names(row)[which.max(row)]
     other_values <- row[row != max_value]
     average_others <- mean(other_values)
-    
+
     if (max_value >= 4 * max(other_values)) {
         return(paste("individual_specific", max_donor, sep = "_"))
     } else if (max_value >= 2 * average_others) {
@@ -309,7 +309,7 @@ classify_expression <- function(row) {
 
 expression_classes <- apply(avg_expr, 1, classify_expression)
 #
-print(head(expression_classes,n = 20)) # Display first few classified expression patterns
+print(head(expression_classes, n = 20)) # Display first few classified expression patterns
 
 # total number of individual specific genes for each donor
 individual_specific_counts <- table(expression_classes[grep("individual_specific_", expression_classes)])
@@ -318,7 +318,6 @@ print(individual_specific_counts) # Display counts of individual specific genes
 # total number of individual elevated genes for each donor
 individual_elevated_counts <- table(expression_classes[grep("individual_elevated_", expression_classes)])
 print(individual_elevated_counts) # Display counts of individual elevated genes
-
 ```
 
 # TRACK 1.2 Expression Patterns Visualization
@@ -328,7 +327,7 @@ This section visualizes individual-specific and individual-elevated expression p
 # 9. Summary of Individual-Specific and Individual-Elevated DEGs liver vs brain significant genes
 
 # Count individual-specific and individual-elevated DEGs
-specific_genes <- names(expression_classes[grep("individual_specific_", expression_classes)]) 
+specific_genes <- names(expression_classes[grep("individual_specific_", expression_classes)])
 elevated_genes <- names(expression_classes[grep("individual_elevated_", expression_classes)])
 
 # Filter significant genes
@@ -351,46 +350,31 @@ print(paste("Total individual-elevated DEGs:", n_elevated_degs))
 This section summarizes the individual-specific and individual-elevated DEGs identified in the analysis, providing insights into tissue-specific expression patterns.
 
 ```{r individual_specific_elevated_summary}
+analyze_gene <- function(gene_name, cpm_values, metadata, plot_type = "boxplot") {
+    # Get gene expression and calculate donor averages
+    expr_values <- cpm_values[gene_name, ]
+    avg_by_donor <- tapply(expr_values, metadata$Donor, mean)
 
-analyze_gene <- function(gene_name, cpm_values, metadata, expression_classes, plot_type = "boxplot") {
-  
-  expr_values <- cpm_values[gene_name, ]
-  donor_list <- setNames(metadata$Donor, metadata$Sample)
-  avg_by_donor <- tapply(expr_values, donor_list, mean, na.rm = TRUE)
-  
-  gene_class <- expression_classes[gene_name]
-  elevated <- if (grepl("individual_elevated_", gene_class)) gsub("individual_elevated_", "", gene_class) else NULL
-  specific <- if (grepl("individual_specific_", gene_class)) gsub("individual_specific_", "", gene_class) else NULL
-
-  plot_data <- data.frame(
-    Expression = expr_values,
-    Donor = donor_list[rownames(metadata)]
-  )
+    # Create plot data
+    plot_data <- data.frame(
+        Expression = expr_values,
+        Donor = metadata$Donor
+    )
 
     if (plot_type == "barplot") {
-    p <- ggplot(data.frame(Donor = names(avg_by_donor), Avg = avg_by_donor), aes(x = Donor, y = Avg, fill = Donor)) +
-        geom_bar(stat = "identity") +
-        labs(title = gene_name, y = "Average CPM", x = "Donor") +
-        theme_minimal()
+        ggplot(data.frame(Donor = names(avg_by_donor), Avg = avg_by_donor), aes(x = Donor, y = Avg, fill = Donor)) +
+            geom_bar(stat = "identity") +
+            labs(title = gene_name, y = "Average CPM", x = "Donor") +
+            theme_minimal()
     } else {
-    p <- ggplot(plot_data, aes(x = Donor, y = Expression, fill = Donor)) +
-        geom_boxplot() +
-        geom_jitter(width = 0.2, alpha = 0.6) +
-        labs(title = gene_name, y = "CPM", x = "Donor") +
-        theme_minimal()
+        ggplot(plot_data, aes(x = Donor, y = Expression, fill = Donor)) +
+            geom_boxplot() +
+            geom_jitter(width = 0.2, alpha = 0.6) +
+            labs(title = gene_name, y = "CPM", x = "Donor") +
+            theme_minimal()
     }
-
-    print(p) 
-
-  cat("Gene:", gene_name, "\n")
-  cat("Average expression by donor:\n")
-  print(round(avg_by_donor, 2))
-  cat("\nExpression class:", gene_class, "\n")
-  if (!is.null(elevated)) cat("Elevated in:", elevated, "\n")
-  if (!is.null(specific)) cat("Specific to:", specific, "\n")
 }
 
-analyze_gene("ABAT", cpm_values, metadata, expression_classes, plot_type = "boxplot")
-analyze_gene("ABAT", cpm_values, metadata, expression_classes, plot_type = "barplot")
-
+analyze_gene("ABAT", cpm_values, metadata, plot_type = "boxplot")
+analyze_gene("ABAT", cpm_values, metadata, plot_type = "barplot")
 ```
