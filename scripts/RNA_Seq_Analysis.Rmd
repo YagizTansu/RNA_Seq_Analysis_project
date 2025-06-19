@@ -351,7 +351,6 @@ This section summarizes the individual-specific and individual-elevated DEGs ide
 
 ```{r individual_specific_elevated_summary}
 analyze_gene <- function(gene_name, cpm_values, metadata, expression_classes, plot_type = "barplot") {
-    # Gene expression values
     expr_values <- cpm_values[gene_name, ]
 
     ##    liver_S7    brain_S7   muscle_S7    heart_S7   kidney_S7     lung_S7
@@ -393,10 +392,7 @@ analyze_gene <- function(gene_name, cpm_values, metadata, expression_classes, pl
             labs(title = gene_name, y = "CPM") +
             theme_minimal()
     }
-
     print(plot) # Display the plot
-
-
 }
 
 analyze_gene("ABAT", cpm_values, metadata, expression_classes, "boxplot")
