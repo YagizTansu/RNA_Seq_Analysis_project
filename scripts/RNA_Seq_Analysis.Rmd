@@ -1,7 +1,5 @@
 ---
 title: "RNA-Seq Analysis Project"
-author: "Yagmur Yesilyurt"
-date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
   html_document:
     toc: true
@@ -60,8 +58,6 @@ This section establishes the computational environment and loads necessary tools
 
 - **ggplot2**: Serves as the primary graphics engine, enabling the creation of publication-quality plots including volcano plots, PCA plots, and expression heatmaps.
 
-- **RColorBrewer**: Complements ggplot2 by providing carefully designed color palettes that are both aesthetically pleasing and scientifically appropriate for different types of data visualization.
-
 - **tidyverse**: A collection of packages that handles data manipulation and transformation tasks, including dplyr for data filtering and summarization, and tidyr for reshaping data structures.
 
 - **stringr**: Provides essential string processing capabilities needed for gene name manipulation and text formatting throughout the analysis pipeline.
@@ -70,7 +66,6 @@ This section establishes the computational environment and loads necessary tools
 # Load required libraries
 library(edgeR)
 library(ggplot2)
-library(RColorBrewer)
 library(tidyverse)
 library(stringr)
 
@@ -96,7 +91,7 @@ dim(counts) # Expected dimensions: 28391 genes x 18 samples
 apply(counts,2,sum) # Check total counts per sample
 sum(is.na(counts))  # Check for missing values
 head(metadata) # Display first few rows of metadata
-dim(metadata) # Expected dimensions: 18 samples x 3 metadata columns
+dim(metadata) # Expected dimensions: 18 samples x 2 metadata columns
 sum(is.na(metadata))  # Check for missing values
 ```
 
@@ -110,6 +105,7 @@ columns_name_counts_match_check <- identical(metadata$Sample, colnames(counts))
 if (columns_name_counts_match_check == FALSE) {
     metadata <- metadata[match(colnames(counts), metadata$Sample), ] # Reorder metadata to match counts columns # nolint: line_length_linter.
     rownames(metadata) <- NULL # Reset row names to avoid confusion
+    print("metadata reordered to match counts columns.")
 }else {
     print("Sample names in metadata match columns of counts.")
 }
@@ -177,9 +173,12 @@ ggplot(data.frame(
 ```
 
 **Key Observations:**
-\- Distinct clustering of samples by tissue type.
-\- Some overlap between liver and brain tissues, indicating shared expression patterns.
-\- Individual donors show some clustering, but tissue type is the dominant factor.
+All tissue groups form clear clusters. This shows that the dataset is well separated and the tissues can be distinguished from each other.
+
+The most distinct groups are:
+Brain (red): Located at the top, far from the other tissues.
+Muscle (pink): Isolated in the bottom left corner.
+Liver (turquoise): Clearly clustered in the bottom right corner.
 
 # 5. Differential Expression Analysis
 
@@ -191,12 +190,15 @@ selected_samples <- dge$samples$Tissue %in% selected_tissues
 dge_selected <- dge[, selected_samples]
 dge_selected$samples$group <- factor(dge_selected$samples$Tissue)
 
+
 # Estimate dispersion
 dge_selected <- estimateCommonDisp(dge_selected)
+print(dge_selected$common.dispersion)
 dge_selected <- estimateTagwiseDisp(dge_selected)
+print(head(dge_selected$tagwise.dispersion))
 
 # Test for DE
-et <- exactTest(dge_selected, pair=c("liver", "brain"))
+et <- exactTest(dge_selected)
 
 head(et$table) # Display first few rows of results
 
@@ -234,20 +236,17 @@ The graph shows many genes that are expressed differently, with some increasing 
 We classify genes based on their expression patterns and regulatory behavior.
 
 ```{r gene_classes}
-# Classify genes into categories
-gene_classes <- data.frame(top_genes$table) %>%
-  mutate(class = case_when(
-    FDR <= 0.01 & logFC > 0 ~ "DE_UP",
-    FDR <= 0.01 & logFC < 0 ~ "DE_DOWN",
-    FDR > 0.01 & logFC > 0 ~ "notDE_UP",
-    FDR > 0.01 & logFC < 0 ~ "notDE_DOWN"
-  ))
+gene_classes <- data.frame(top_genes$table)
+print(head(gene_classes))
+gene_classes$class <- ifelse(gene_classes$FDR <= 0.01 & gene_classes$logFC > 0, "DE_UP",
+                      ifelse(gene_classes$FDR <= 0.01 & gene_classes$logFC < 0, "DE_DOWN",
+                      ifelse(gene_classes$FDR > 0.01 & gene_classes$logFC > 0, "notDE_UP",
+                      ifelse(gene_classes$FDR > 0.01 & gene_classes$logFC < 0, "notDE_DOWN", NA))))
 
 # Create boxplot
 ggplot(gene_classes, aes(x=class, y=logFC, fill=class)) +
   geom_boxplot() +
   theme_bw() +
-  scale_fill_brewer(palette="Set2") +
   ggtitle("Distribution of logFC by Gene Class") +
   xlab("Gene Class") +
   ylab("Log2 Fold Change") +
@@ -255,14 +254,12 @@ ggplot(gene_classes, aes(x=class, y=logFC, fill=class)) +
 ```
 
 **Key Observations:**
-\- The majority of genes are not differentially expressed, with a balanced distribution between upregulated and downregulated genes.
-\- DE_UP and DE_DOWN categories show distinct expression patterns, indicating significant tissue-specific regulation.
+Genes are successfully grouped based on statistical significance (FDR) and expression direction (logFC). The DE (differentially expressed) groups are clearly separated from the others. This shows that the analysis has correctly identified important changes in gene expression.
 
 
-# TRACK1
-# 8. Expression Pattern Analysis
+# TRACK_1
 
-## 8.1 Individual Expression Profiles
+# TRACK 1.1 Individual Expression Profiles
 
 This section examines gene expression patterns specific to individual donors.
 
@@ -279,6 +276,7 @@ donor_averages <- list()
 for (donor in unique(metadata$Donor)) {
     donor_samples <- metadata$Donor == donor
     donor_averages[[donor]] <- rowMeans(cpm_values[, donor_samples], na.rm = TRUE)
+      print("")
     print(donor) # Print donor name
     print(head(donor_averages[[donor]])) # Display first few values of the donor averages
 }
@@ -311,25 +309,27 @@ classify_expression <- function(row) {
 
 expression_classes <- apply(avg_expr, 1, classify_expression)
 #
-print(head(expression_classes)) # Display first few classified expression patterns
+print(head(expression_classes,n = 20)) # Display first few classified expression patterns
 
 # total number of individual specific genes for each donor
-individual_specific_counts <- table(gsub("individual_specific_", "", expression_classes[grep("individual_specific_", expression_classes)]))
+individual_specific_counts <- table(expression_classes[grep("individual_specific_", expression_classes)])
 print(individual_specific_counts) # Display counts of individual specific genes
 
 # total number of individual elevated genes for each donor
-individual_elevated_counts <- table(gsub("individual_elevated_", "", expression_classes[grep("individual_elevated_", expression_classes)]))
+individual_elevated_counts <- table(expression_classes[grep("individual_elevated_", expression_classes)])
 print(individual_elevated_counts) # Display counts of individual elevated genes
 
 ```
 
+# TRACK 1.2 Expression Patterns Visualization
+This section visualizes individual-specific and individual-elevated expression patterns using boxplots and barplots
 
 ```{r expression_summary}
 # 9. Summary of Individual-Specific and Individual-Elevated DEGs liver vs brain significant genes
 
 # Count individual-specific and individual-elevated DEGs
-specific_genes <- names(expression_classes[grep("^individual_specific_", expression_classes)]) 
-elevated_genes <- names(expression_classes[grep("^individual_elevated_", expression_classes)])
+specific_genes <- names(expression_classes[grep("individual_specific_", expression_classes)]) 
+elevated_genes <- names(expression_classes[grep("individual_elevated_", expression_classes)])
 
 # Filter significant genes
 specific_degs <- specific_genes[specific_genes %in% rownames(sig_genes)]
@@ -346,23 +346,17 @@ print(paste("Total individual-specific DEGs:", n_specific_degs))
 print(paste("Total individual-elevated DEGs:", n_elevated_degs))
 ```
 
-# 9. Individual-Specific and Individual-Elevated DEGs Summary
+# TRACK 1.3 Individual-Specific and Individual-Elevated DEGs Summary
+
 This section summarizes the individual-specific and individual-elevated DEGs identified in the analysis, providing insights into tissue-specific expression patterns.
 
 ```{r individual_specific_elevated_summary}
 
-analyze_gene <- function(gene_name, cpm_matrix, metadata, expression_classes, plot_type = "boxplot") {
+analyze_gene <- function(gene_name, cpm_values, metadata, expression_classes, plot_type = "boxplot") {
   
-  if (!(gene_name %in% rownames(cpm_matrix))) {
-    stop(paste("Gen", gene_name, "veride bulunamadı."))
-  }
-
-  expr_values <- cpm_matrix[gene_name, ]
-  
-  donors <- metadata$Donor
-  names(donors) <- metadata$Sample
-
-  avg_by_donor <- tapply(expr_values, donors, mean, na.rm = TRUE)
+  expr_values <- cpm_values[gene_name, ]
+  donor_list <- setNames(metadata$Donor, metadata$Sample)
+  avg_by_donor <- tapply(expr_values, donor_list, mean, na.rm = TRUE)
   
   gene_class <- expression_classes[gene_name]
   elevated <- if (grepl("individual_elevated_", gene_class)) gsub("individual_elevated_", "", gene_class) else NULL
@@ -370,7 +364,7 @@ analyze_gene <- function(gene_name, cpm_matrix, metadata, expression_classes, pl
 
   plot_data <- data.frame(
     Expression = expr_values,
-    Donor = donors[rownames(metadata)]
+    Donor = donor_list[rownames(metadata)]
   )
 
     if (plot_type == "barplot") {
