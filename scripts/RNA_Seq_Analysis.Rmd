@@ -1,5 +1,6 @@
 ---
 title: "RNA-Seq Analysis Project"
+author: "Yagmur Yesilyurt - Matriculation number:'49614A' - Methods in Bioinformatics Final Project"
 output:
   html_document:
     toc: true
@@ -43,19 +44,15 @@ The dataset contains RNA-Seq data from human tissues:
 
 ## 1.1 Initial Setup
 
-Loading the required packages for the analysis.
+In this section, we will load the necessary libraries and set up the environment for our RNA-Seq analysis.
 
-- **edgeR**: For differential expression analysis and TMM normalization
+- **edgeR**: For differential expression analysis
 - **ggplot2**: For creating plots and visualizations
-- **tidyverse**: For data manipulation and processing
-- **stringr**: For handling gene names and text processing
 
 ```{r libraries}
 # Load required libraries
 library(edgeR)
 library(ggplot2)
-library(tidyverse)
-library(stringr)
 
 # Create results directory if it doesn't exist
 dir.create("../results", showWarnings = TRUE)
@@ -63,7 +60,7 @@ dir.create("../results", showWarnings = TRUE)
 
 ## 1.2 Data Import and Preprocessing
 
-Loading the data and checking it looks correct.
+In this section, we will read the metadata and count data files, check for missing values, and ensure that sample names match between the metadata and count data.
 
 ### Load Data
 ```{r load_data}
@@ -84,13 +81,13 @@ sum(is.na(metadata)) # Check for missing values
 ```
 
 ### Add Sample Column to Metadata
-Making sure sample names match between metadata and count data.
+In this step, we will create a new column in the metadata that combines tissue type and donor ID to match the sample names in the count data. This is crucial for ensuring that our metadata aligns with the count data.
 ```{r add_sample_column_to_metadata}
-metadata$Sample <- paste(metadata$Tissue, metadata$Donor, sep = "_")
+metadata$Sample <- paste(metadata$Tissue, metadata$Donor, sep = "_") # Combine Tissue and Donor
 
-columns_name_counts_match_check <- identical(metadata$Sample, colnames(counts))
+columns_name_counts_match_check <- identical(metadata$Sample, colnames(counts)) # Check if sample names match
 
-if (columns_name_counts_match_check == FALSE) {
+if (columns_name_counts_match_check == FALSE) { # If names don't match, reorder metadata
     metadata <- metadata[match(colnames(counts), metadata$Sample), ]
     rownames(metadata) <- NULL
     print("Reordered metadata to match count data.")
@@ -98,9 +95,9 @@ if (columns_name_counts_match_check == FALSE) {
     print("Sample names already match.")
 }
 
-head(metadata)
+head(metadata) # Check first few rows of metadata to see the new Sample column
 
-columns_name_counts_match_check <- identical(metadata$Sample, colnames(counts))
+columns_name_counts_match_check <- identical(metadata$Sample, colnames(counts)) # Final check if sample names match
 
 if (columns_name_counts_match_check == FALSE) {
     stop("Sample names still don't match!")
@@ -110,7 +107,7 @@ if (columns_name_counts_match_check == FALSE) {
 ```
 
 ### Create a DGEList object for edgeR analysis
-Setting up the main data object for analysis.
+In this step, we will create a `DGEList` object from the count data and metadata. This object is essential for performing differential expression analysis using edgeR.
 
 ```{r create_dge}
 dge <- DGEList(counts = counts, samples = metadata)
@@ -119,30 +116,30 @@ head(dge$samples) # Sample info
 ```
 
 # 2. Filtering
-Removing genes with very low expression to reduce noise.
+In this section, we will filter out lowly expressed genes to focus on those that are more likely to be biologically relevant. We will keep genes that have at least 10 counts in at least one sample.
 ```{r filtering}
 # Keep genes with at least 10 counts in at least one sample
 keep <- rowSums(dge$counts > 10) >= 1
-dge <- dge[keep, , keep.lib.sizes = FALSE]
+dge <- dge[keep, , keep.lib.sizes = FALSE] # Update DGEList object with filtered counts
 print("Dimensions after filtering:")
 dim(dge)
 ```
 
 # 3. Normalization
-Normalizing for library size differences using TMM method.
+In this section, we will normalize the count data to account for differences in library sizes across samples. This is crucial for making fair comparisons between samples.
 ```{r normalizing}
-dge <- calcNormFactors(dge)
+dge <- calcNormFactors(dge) # Calculate normalization factors using TMM (Trimmed Mean of M-values)
 
 head(dge$samples)
 ```
 
 # 4. Multi-dimensional Scaling
-Looking at how similar samples are to each other.
+In this section, we will perform a multi-dimensional scaling (MDS) analysis to visualize the relationships between samples based on their gene expression profiles. This will help us identify any clustering patterns or outliers in the data.
 
 ```{r mds_analysis}
 mds <- plotMDS(dge, plot = FALSE)
 
-# Plot with ggplot2
+# Plot MDS
 ggplot(data.frame(
     x = mds$x,
     y = mds$y,
@@ -159,34 +156,34 @@ ggplot(data.frame(
 Tissues cluster nicely by type, which is what we'd expect. Brain samples are quite different from everything else, and muscle and liver also form their own distinct groups.
 
 # 5. Differential Expression Analysis
-
-Finding genes that are expressed differently between liver and brain.
+In this section, we will perform differential expression analysis to identify genes that are significantly differentially expressed between liver and brain tissues. We will use the `exactTest` function from edgeR to perform this analysis.
 ```{r exact_test}
-# Setup comparison
+# Select liver and brain samples for differential expression analysis
 selected_tissues <- c("liver", "brain")
 selected_samples <- dge$samples$Tissue %in% selected_tissues
 dge_selected <- dge[, selected_samples]
 dge_selected$samples$group <- factor(dge_selected$samples$Tissue)
 
 # Estimate dispersion
-dge_selected <- estimateCommonDisp(dge_selected)
+dge_selected <- estimateCommonDisp(dge_selected) # Estimate common dispersion across all genes
 print(dge_selected$common.dispersion)
-dge_selected <- estimateTagwiseDisp(dge_selected)
+dge_selected <- estimateTagwiseDisp(dge_selected) # Estimate tagwise dispersion for each gene
 print(head(dge_selected$tagwise.dispersion))
 
-# Test for DE
+# Perform exact test for differential expression
 et <- exactTest(dge_selected)
 
 head(et$table)
 ```
 
 # 6 Top Differentially Expressed Genes (DEGs)
+In this section, we will extract the top differentially expressed genes (DEGs) from the results of the exact test. We will also create a volcano plot to visualize the results.
 ```{r top_tags}
-top_genes <- topTags(et, n = Inf)
+top_genes <- topTags(et, n = Inf) # Get all top tags
 
 head(top_genes$table)
 
-sig_genes <- top_genes$table[top_genes$table$FDR < 0.01, ]
+sig_genes <- top_genes$table[top_genes$table$FDR < 0.01, ] # Filter for significant genes with FDR < 0.01
 
 head(sig_genes)
 
@@ -203,13 +200,15 @@ ggplot(top_genes$table, aes(x = logFC, y = -log10(FDR))) +
 Found 1,234 significantly different genes between liver and brain. The volcano plot shows we have plenty of genes going in both directions - some higher in liver, some higher in brain.
 
 # 7 Expression Categories
-Grouping genes by how they behave.
+In this section, we will classify the genes into different categories based on their expression patterns. We will create a boxplot to visualize the distribution of log fold changes (logFC) for each category.
 
 ```{r gene_classes}
-gene_classes <- data.frame(top_genes$table)
-print(head(gene_classes))
-gene_classes$class <- ifelse(gene_classes$FDR <= 0.01 & gene_classes$logFC > 0, "DE_UP",
-    ifelse(gene_classes$FDR <= 0.01 & gene_classes$logFC < 0, "DE_DOWN",
+gene_classes <- data.frame(top_genes$table) # Create a data frame with top genes
+print(head(gene_classes)) 
+
+# Classify genes based on FDR and logFC
+gene_classes$class <- ifelse(gene_classes$FDR <= 0.01 & gene_classes$logFC > 0, "DE_UP", 
+    ifelse(gene_classes$FDR <= 0.01 & gene_classes$logFC < 0, "DE_DOWN", 
         ifelse(gene_classes$FDR > 0.01 & gene_classes$logFC > 0, "notDE_UP",
             ifelse(gene_classes$FDR > 0.01 & gene_classes$logFC < 0, "notDE_DOWN", NA)
         )
@@ -226,27 +225,28 @@ ggplot(gene_classes, aes(x = class, y = logFC, fill = class)) +
     theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
-**Looks good:**
+**What we see:**
 The significantly different genes (DE_UP and DE_DOWN) are clearly separated from the non-significant ones, which gives us confidence in our results.
 
 # TRACK_1
 
 # TRACK 1.1 Individual Expression Profiles
 
-Looking at which genes might be special to individual donors.
+In this section, we will analyze individual-specific and individual-elevated expression patterns across donors. We will calculate counts per million (CPM) values and classify genes based on their expression patterns.
 
 ```{r expression_patterns}
 # Calculate CPM values
 cpm_values <- cpm(dge, log = FALSE)
 
-head(dge$counts) # Before transformation
-head(cpm_values) # After transformation
+head(dge$counts) # Before normalization
+head(cpm_values) # After normalization
 
 # Calculate donor averages
-donor_averages <- list()
+donor_averages <- list() # Initialize list to store averages
+
 for (donor in unique(metadata$Donor)) {
-    donor_samples <- metadata$Donor == donor
-    donor_averages[[donor]] <- rowMeans(cpm_values[, donor_samples], na.rm = TRUE)
+    donor_samples <- metadata$Donor == donor # Get samples for the donor
+    donor_averages[[donor]] <- rowMeans(cpm_values[, donor_samples], na.rm = TRUE) # Calculate average CPM for each gene across samples of the same donor
     print("")
     print(donor)
     print(head(donor_averages[[donor]]))
@@ -263,9 +263,9 @@ print(head(avg_expr))
 
 # Classify genes
 classify_expression <- function(row) {
-    max_value <- max(row)
-    max_donor <- names(row)[which.max(row)]
-    other_values <- row[row != max_value]
+    max_value <- max(row) # Get maximum value in the row
+    max_donor <- names(row)[which.max(row)] # Get donor with maximum value
+    other_values <- row[row != max_value] # Get other values excluding the maximum
     average_others <- mean(other_values)
 
     if (max_value >= 4 * max(other_values)) {
@@ -277,7 +277,7 @@ classify_expression <- function(row) {
     }
 }
 
-expression_classes <- apply(avg_expr, 1, classify_expression)
+expression_classes <- apply(avg_expr, 1, classify_expression) # Classify each gene based on its expression pattern
 
 print(head(expression_classes, n = 20))
 
@@ -290,77 +290,67 @@ individual_elevated_counts <- table(expression_classes[grep("individual_elevated
 print(individual_elevated_counts)
 ```
 
-# TRACK 1.2 Expression Patterns Visualization
-Visualizing individual-specific and elevated patterns.
-
+# TRACK 1.2 Expression Patterns visualizations
+In this section, we will visualize the expression patterns of individual-specific and individual-elevated genes using DGEList created earlier to compare liver and brain samples.
 ```{r expression_summary}
-# Summary of individual patterns in significant DEGs
 
-# Find individual-specific and elevated genes
-specific_genes <- names(expression_classes[grep("individual_specific_", expression_classes)])
+# Extract gene names for individual-specific and individual-elevated genes
+specific_genes <- names(expression_classes[grep("individual_specific_", expression_classes)])   
 elevated_genes <- names(expression_classes[grep("individual_elevated_", expression_classes)])
 
-# Filter for significant genes only
-specific_degs <- specific_genes[specific_genes %in% rownames(sig_genes)]
-elevated_degs <- elevated_genes[elevated_genes %in% rownames(sig_genes)]
+# Filter for significant genes only between liver and brain
+individual_specific_degs <- specific_genes[specific_genes %in% rownames(sig_genes)]
+individual_elevated_degs <- elevated_genes[elevated_genes %in% rownames(sig_genes)]
 
-head(specific_degs)
-head(elevated_degs)
+head(individual_specific_degs) 
+head(individual_elevated_degs)
 
-# Print summary
-n_specific_degs <- length(specific_degs)
-n_elevated_degs <- length(elevated_degs)
+# Count the number of individual-specific and individual-elevated DEGs
+n_individual_specific_degs <- length(individual_specific_degs)
+n_individual_elevated_degs <- length(individual_elevated_degs)
 
-print(paste("Individual-specific DEGs:", n_specific_degs))
-print(paste("Individual-elevated DEGs:", n_elevated_degs))
+print(paste("Individual-specific DEGs:", n_individual_specific_degs))
+print(paste("Individual-elevated DEGs:", n_individual_elevated_degs))
 ```
 
 # TRACK 1.3 Individual Gene Analysis
-
-Detailed look at individual genes and their expression patterns.
-
+In this section, we will analyze individual-specific and individual-elevated genes in detail. We will create barplots and boxplots to visualize the expression patterns of these genes across donors.
 ```{r individual_specific_elevated_summary}
-analyze_gene <- function(gene_name, cpm_values, metadata, expression_classes, plot_type = "barplot") {
-    expr_values <- cpm_values[gene_name, ]
+analyze_gene <- function(gene_name, cpm_values, metadata, expression_classes, avg_expr, plot_type = "barplot") {
 
-    # Average by donor
-    avg_by_donor <- tapply(expr_values, metadata$Donor, mean)
-    
+# Takes all info for a single gene   
+    expr_values <- cpm_values[gene_name, ]
+    avg_by_donor <- avg_expr[gene_name, ]
+
+# Print average expression and class   
     cat("Average expression:\n")
     print(avg_by_donor)
-    cat("Class:", expression_classes[gene_name], "\n\n")
+    cat("Class:", expression_classes[gene_name], "\n")
+    
+ # Create a barplot or boxplot for the gene   
+    donor <- names(avg_by_donor) # Take and assign donor names
 
-    bar_plot_data <- data.frame(
-        Donor = names(avg_by_donor),
-        Avg = avg_by_donor
-    )
-
-    # Plot data
-    box_plot_data <- data.frame(
-        Expression = expr_values,
-        Donor = metadata$Donor
-    )
-
-    # Create plot
-    if (plot_type == "barplot") {
-        plot <- ggplot(
-            bar_plot_data,
-            aes(x = Donor, y = Avg, fill = Donor)) +
+    plot <- if (plot_type == "barplot") {
+        ggplot(data.frame(Donor = donor, Avg = as.numeric(avg_by_donor)),
+               aes(x = Donor, y = Avg, fill = Donor)) +
             geom_bar(stat = "identity") +
             labs(title = gene_name, y = "Average CPM") +
             theme_minimal()
     } else {
-        plot <- ggplot(
-            box_plot_data, 
-            aes(x = Donor, y = Expression, fill = Donor)) +
+        ggplot(data.frame(Expression = expr_values, Donor = metadata$Donor),
+               aes(x = Donor, y = Expression, fill = Donor)) +
             geom_boxplot() +
             geom_jitter(width = 0.2, alpha = 0.6) +
             labs(title = gene_name, y = "CPM") +
             theme_minimal()
     }
+    
     print(plot)
 }
 
-analyze_gene("ABAT", cpm_values, metadata, expression_classes, "boxplot")
-analyze_gene("ABAT", cpm_values, metadata, expression_classes, "barplot")
+analyze_gene("7SK", cpm_values, metadata, expression_classes, avg_expr, "boxplot")
+analyze_gene("7SK", cpm_values, metadata, expression_classes, avg_expr, "barplot")
 ```
+
+# Overall Summary
+In this RNA-Seq analysis, we successfully identified differentially expressed genes between liver and brain tissues, classified genes based on their expression patterns across individual donors, and visualized these patterns. We found that some genes were uniquely expressed in specific individuals, while others showed elevated expression levels.
